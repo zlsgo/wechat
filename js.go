@@ -28,7 +28,7 @@ func (e *Engine) GetJsSign(url string) (JsSign, error) {
 	signature := fmt.Sprintf("jsapi_ticket=%s&noncestr=%s&timestamp=%d&url=%s", jsapiTicket, noncestr, timestamp, url)
 	signature = sha1Signature(signature)
 	return JsSign{
-		AppID:     e.GetAppId(),
+		AppID:     e.GetAppID(),
 		NonceStr:  noncestr,
 		Timestamp: timestamp,
 		Signature: signature,

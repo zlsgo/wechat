@@ -16,6 +16,7 @@ import (
 )
 
 type (
+	// Cfg Cfg
 	Cfg interface {
 		GetAppID() string
 		GetToken() string
@@ -26,6 +27,7 @@ type (
 		getAccessToken() (data []byte, err error)
 		getJsapiTicket() (data *zhttp.Res, err error)
 	}
+	// Engine Engine
 	Engine struct {
 		config Cfg
 		cache  *zcache.Table
@@ -34,18 +36,20 @@ type (
 )
 
 const (
-	apiurl                     = "https://api.weixin.qq.com"
-	qyurl                      = "https://qyapi.weixin.qq.com"
-	cachePrefix                = "go_wechat_"
+	// APIURL 微信接口域名
+	APIURL = "https://api.weixin.qq.com"
+	// QyAPIURL 企业微信接口域名
+	QyAPIURL                   = "https://qyapi.weixin.qq.com"
+	cachePrtfix                = "go_wechat_"
 	cacheToken                 = "Token"
 	cacheJsapiTicket           = "JsapiTicket"
 	cacheComponentVerifyTicket = "componentVerifyTicket"
 )
 
 var (
-	log   = zlog.New("[Wx] ")
-	apps  = map[string]string{}
-	debug bool
+	log       = zlog.New("[Wx] ")
+	apps      = map[string]string{}
+	cacheData []byte
 )
 
 func init() {
@@ -53,23 +57,21 @@ func init() {
 	Debug(false)
 }
 
+// Debug 调试模式
 func Debug(disable ...bool) {
 	state := true
 	if len(disable) > 0 {
 		state = disable[0]
 	}
 	if state {
-		debug = true
 		log.SetLogLevel(zlog.LogDump)
 	} else {
-		debug = false
 		log.SetLogLevel(zlog.LogWarn)
 	}
 
 }
 
-var cacheData []byte
-
+// LoadCacheData 加载缓存文件
 func LoadCacheData(path string) (err error) {
 	var f os.FileInfo
 	path = zfile.RealPath(path)
@@ -86,7 +88,7 @@ func LoadCacheData(path string) (err error) {
 		if len(k) < 2 || (k[0] == "" || k[1] == "") {
 			return true
 		}
-		cacheName := cachePrefix + k[1] + k[0]
+		cacheName := cachePrtfix + k[1] + k[0]
 		cache := zcache.New(cacheName)
 		apps[k[0]] = k[1]
 		value.ForEach(func(key, value zjson.Res) bool {
@@ -116,6 +118,7 @@ func isSetCache(value zjson.Res, now int64) (diffTime int) {
 	return
 }
 
+// SaveCacheData 保存缓存数据
 func SaveCacheData(path string) (json string, err error) {
 	var file *os.File
 	json = "{}"
@@ -135,8 +138,8 @@ func SaveCacheData(path string) (json string, err error) {
 	defer file.Close()
 	now := time.Now().Unix()
 	for k, v := range apps {
-		log.Debug("SaveCacheData: ", cachePrefix+v+k)
-		cache := zcache.New(cachePrefix + v + k)
+		log.Debug("SaveCacheData: ", cachePrtfix+v+k)
+		cache := zcache.New(cachePrtfix + v + k)
 		cache.ForEachRaw(func(key string, value *zcache.Item) bool {
 			title := k + "\\|" + v
 			log.Debug(title, key)
@@ -161,9 +164,9 @@ func SaveCacheData(path string) (json string, err error) {
 	return
 }
 
+// New 初始一个实例
 func New(c Cfg) *Engine {
-	action := ""
-	appid := c.GetAppID()
+	appid, action := c.GetAppID(), ""
 	switch c.(type) {
 	case *Open:
 		action = "open"
@@ -173,7 +176,7 @@ func New(c Cfg) *Engine {
 		action = "mp"
 	}
 	engine := &Engine{
-		cache:  zcache.New(cachePrefix + action + appid),
+		cache:  zcache.New(cachePrtfix + action + appid),
 		config: c,
 		action: action,
 	}
@@ -182,33 +185,47 @@ func New(c Cfg) *Engine {
 	return engine
 }
 
+// GetAction 获取实例
 func (e *Engine) GetAction() Cfg {
 	return e.config
 }
 
-func (e *Engine) GetAppId() string {
+// GetAppID 获取 Appid
+func (e *Engine) GetAppID() string {
 	return e.config.GetAppID()
 }
 
+// GetSecret 获取密钥
 func (e *Engine) GetSecret() string {
 	return e.config.GetSecret()
 }
 
+// IsMp 是否公众号
 func (e *Engine) IsMp() bool {
 	return e.action == "mp"
 }
 
+// IsQy 是否企业微信
 func (e *Engine) IsQy() bool {
 	return e.action == "qy"
 }
 
+// IsOpen 是否开放平台
 func (e *Engine) IsOpen() bool {
 	return e.action == "open"
 }
 
+// IsWeapp 是否小程序
+func (e *Engine) IsWeapp() bool {
+	return e.action == "weapp"
+}
+
+// GetToken 获取 Token
 func (e *Engine) GetToken() string {
 	return e.config.GetToken()
 }
+
+// GetEncodingAesKey 获取 Aes Key
 func (e *Engine) GetEncodingAesKey() string {
 	return e.config.GetEncodingAesKey()
 }

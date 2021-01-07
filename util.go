@@ -3,10 +3,10 @@ package wechat
 import (
 	"bytes"
 	"encoding/xml"
-	"errors"
 	"fmt"
 	"io"
 	netHttp "net/http"
+	"strconv"
 
 	"github.com/sohaha/zlsgo/zhttp"
 	"github.com/sohaha/zlsgo/zjson"
@@ -107,10 +107,13 @@ func ParseXML2Map(b []byte) (m XMLData, err error) {
 // CheckResError CheckResError
 func CheckResError(v []byte) (*zjson.Res, error) {
 	data := zjson.ParseBytes(v)
-	code := data.Get("errcode").String()
-	if code == "0" || code == "" {
-		return &data, nil
+	code := data.Get("errcode").Int()
+	if code != 0 {
+		errmsg := data.Get("errmsg").String()
+		if errmsg == "" {
+			return &zjson.Res{}, httpError{Code: code, Msg: "errcode: " + strconv.Itoa(code)}
+		}
+		return &zjson.Res{}, httpError{Code: code, Msg: errmsg}
 	}
-	msg := data.Get("errmsg").String()
-	return &zjson.Res{}, errors.New(code + ": " + msg)
+	return &data, nil
 }

@@ -82,7 +82,7 @@ func (o *Open) GetComponentAccessToken() (string, error) {
 			"component_verify_ticket": ticket,
 		}
 		res, err := http.Post(fmt.Sprintf(
-			"%s/cgi-bin/component/api_component_token", apiurl), zhttp.BodyJSON(post))
+			"%s/cgi-bin/component/api_component_token", APIURL), zhttp.BodyJSON(post))
 		if err != nil {
 			return
 		}
@@ -119,7 +119,7 @@ func (o *Open) getPreAuthCode() (string, error) {
 			if err != nil {
 				return
 			}
-			url := fmt.Sprintf("%s/cgi-bin/component/api_create_preauthcode?component_access_token=%s", apiurl, ticket)
+			url := fmt.Sprintf("%s/cgi-bin/component/api_create_preauthcode?component_access_token=%s", APIURL, ticket)
 			var res *zhttp.Res
 			post, _ := zjson.Set("{}", "component_appid", o.AppID)
 			res, err = http.Post(url, post)
@@ -199,10 +199,10 @@ func (e *Engine) ComponentApiQueryAuth(authCode, redirectUri string) (s string,
 		return "", "", err
 	}
 	res, err := http.Post(fmt.Sprintf(
-		"%s/cgi-bin/component/api_query_auth?component_access_token=%s", apiurl,
+		"%s/cgi-bin/component/api_query_auth?component_access_token=%s", APIURL,
 		componentAccessToken), zhttp.BodyJSON(
 		map[string]string{
-			"component_appid":    e.GetAppId(),
+			"component_appid":    e.GetAppID(),
 			"authorization_code": authCode,
 		}))
 	if err != nil {
@@ -220,7 +220,7 @@ func (e *Engine) getAuthUri(config *Open, redirectUri string) (string, string, e
 	if err != nil {
 		return "", "", err
 	}
-	url := fmt.Sprintf("https://mp.weixin.qq.com/cgi-bin/componentloginpage?component_appid=%s&pre_auth_code=%s&redirect_uri=%s", e.GetAppId(), preAuthCode, redirectUri)
+	url := fmt.Sprintf("https://mp.weixin.qq.com/cgi-bin/componentloginpage?component_appid=%s&pre_auth_code=%s&redirect_uri=%s", e.GetAppID(), preAuthCode, redirectUri)
 	return "", url, ErrOpenJumpAuthorization
 }
 
@@ -235,7 +235,7 @@ func (o *Open) getAccessToken() (data []byte, err error) {
 		return
 	}
 	res, err := http.Post(fmt.Sprintf(
-		"%s/cgi-bin/component/api_authorizer_token?component_access_token=%s", apiurl, componentAccessToken), zhttp.BodyJSON(zhttp.Param{
+		"%s/cgi-bin/component/api_authorizer_token?component_access_token=%s", APIURL, componentAccessToken), zhttp.BodyJSON(zhttp.Param{
 		"component_appid":          o.AppID,
 		"authorizer_appid":         o.authorizerAppID,
 		"authorizer_refresh_token": o.refreshToken,
@@ -273,5 +273,5 @@ func (o *Open) getJsapiTicket() (data *zhttp.Res, err error) {
 	}
 	return http.Post(fmt.Sprintf(
 		"%s/cgi-bin/ticket/getticket?&type=jsapi&access_token=%s",
-		apiurl, token))
+		APIURL, token))
 }

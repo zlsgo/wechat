@@ -45,7 +45,7 @@ func (q *Qy) GetEncodingAesKey() string {
 func (q *Qy) getAccessToken() (data []byte, err error) {
 	var res *zhttp.Res
 	res, err = http.Post(fmt.Sprintf(
-		"%s/cgi-bin/gettoken?corpid=%s&corpsecret=%s", qyurl, q.CorpID,
+		"%s/cgi-bin/gettoken?corpid=%s&corpsecret=%s", QyAPIURL, q.CorpID,
 		q.Secret))
 	if err != nil {
 		return
@@ -62,5 +62,5 @@ func (q *Qy) getJsapiTicket() (data *zhttp.Res, err error) {
 	}
 	return http.Post(fmt.Sprintf(
 		"%s/cgi-bin/get_jsapi_ticket?access_token=%s",
-		qyurl, token))
+		QyAPIURL, token))
 }

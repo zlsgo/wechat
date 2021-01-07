@@ -7,10 +7,8 @@ import (
 )
 
 type (
-	Mp struct {
-		// 公众号 ID
+	Weapp struct {
 		AppID string
-		// 公众号密钥
 		AppSecret      string
 		EncodingAesKey string
 		Token          string
@@ -18,33 +16,33 @@ type (
 	}
 )
 
-var _ Cfg = new(Mp)
+var _ Cfg = new(Weapp)
 
-func (m *Mp) setEngine(engine *Engine) {
+func (m *Weapp) setEngine(engine *Engine) {
 	m.engine = engine
 }
 
-func (m *Mp) getEngine() *Engine {
+func (m *Weapp) getEngine() *Engine {
 	return m.engine
 }
 
-func (m *Mp) GetAppID() string {
+func (m *Weapp) GetAppID() string {
 	return m.AppID
 }
 
-func (m *Mp) GetSecret() string {
+func (m *Weapp) GetSecret() string {
 	return m.AppSecret
 }
 
-func (m *Mp) GetToken() string {
+func (m *Weapp) GetToken() string {
 	return m.Token
 }
 
-func (m *Mp) GetEncodingAesKey() string {
+func (m *Weapp) GetEncodingAesKey() string {
 	return m.EncodingAesKey
 }
 
-func (m *Mp) getAccessToken() (data []byte, err error) {
+func (m *Weapp) getAccessToken() (data []byte, err error) {
 	res, err := http.Post(fmt.Sprintf(
 		"%s/cgi-bin/token?grant_type=client_credential&appid=%s&secret=%s",
 		APIURL, m.AppID, m.AppSecret))
@@ -55,7 +53,7 @@ func (m *Mp) getAccessToken() (data []byte, err error) {
 	return
 }
 
-func (m *Mp) getJsapiTicket() (data *zhttp.Res, err error) {
+func (m *Weapp) getJsapiTicket() (data *zhttp.Res, err error) {
 	var token string
 	token, err = m.engine.GetAccessToken()
 	if err != nil {
