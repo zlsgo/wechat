@@ -27,9 +27,11 @@ type (
 
 func transformSendData(v []interface{}) []interface{} {
 	for i := range v {
-		switch v[i].(type) {
-		case map[string]string, SendData:
-			v[i] = zhttp.BodyJSON(v[i])
+		switch val := v[i].(type) {
+		case string:
+			v[i] = val
+		case map[string]string, SendData, map[string]interface{}:
+			v[i] = zhttp.BodyJSON(val)
 		}
 	}
 	return v
