@@ -8,11 +8,12 @@ import (
 
 type (
 	Qy struct {
-		CorpID         string
+		AgentID        string
 		Secret         string
 		EncodingAesKey string
-		engine         *Engine
 		Token          string
+		CorpID         string
+		engine         *Engine
 	}
 )
 

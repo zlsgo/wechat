@@ -16,7 +16,7 @@ import (
 )
 
 type (
-	// Cfg Cfg
+	// Cfg 微信配置
 	Cfg interface {
 		GetAppID() string
 		GetToken() string
@@ -27,11 +27,13 @@ type (
 		getAccessToken() (data []byte, err error)
 		getJsapiTicket() (data *zhttp.Res, err error)
 	}
-	// Engine Engine
+
 	Engine struct {
-		config Cfg
-		cache  *zcache.Table
-		action string
+		config         Cfg
+		cache          *zcache.Table
+		action         string
+		apiURL         string
+		redirectDomain string
 	}
 )
 
@@ -40,6 +42,7 @@ const (
 	APIURL = "https://api.weixin.qq.com"
 	// QyAPIURL 企业微信接口域名
 	QyAPIURL                   = "https://qyapi.weixin.qq.com"
+	openURL                    = "https://open.weixin.qq.com"
 	cachePrtfix                = "go_wechat_"
 	cacheToken                 = "Token"
 	cacheJsapiTicket           = "JsapiTicket"
@@ -149,8 +152,7 @@ func SaveCacheData(path string) (json string, err error) {
 				json, _ = zjson.Set(json, title+"."+key, value.Data())
 			}
 			json, _ = zjson.Set(json, title+"."+key+".SaveTime", now)
-			json, _ = zjson.Set(json, title+"."+key+".OutTime",
-				value.RemainingLife().Seconds())
+			json, _ = zjson.Set(json, title+"."+key+".OutTime", value.RemainingLife().Seconds())
 
 			return true
 		})
@@ -166,19 +168,23 @@ func SaveCacheData(path string) (json string, err error) {
 
 // New 初始一个实例
 func New(c Cfg) *Engine {
-	appid, action := c.GetAppID(), ""
+	appid, action, apiURL := c.GetAppID(), "", APIURL
 	switch c.(type) {
 	case *Open:
 		action = "open"
 	case *Qy:
 		action = "qy"
+		apiURL = QyAPIURL
 	case *Mp:
 		action = "mp"
+	case *Weapp:
+		action = "weapp"
 	}
 	engine := &Engine{
 		cache:  zcache.New(cachePrtfix + action + appid),
 		config: c,
 		action: action,
+		apiURL: apiURL,
 	}
 	c.setEngine(engine)
 	apps[appid] = action

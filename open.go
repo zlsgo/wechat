@@ -7,6 +7,7 @@ import (
 
 	"github.com/sohaha/zlsgo/zhttp"
 	"github.com/sohaha/zlsgo/zjson"
+	"github.com/sohaha/zlsgo/znet"
 	"github.com/sohaha/zlsgo/zstring"
 )
 
@@ -137,6 +138,10 @@ func (o *Open) getPreAuthCode() (string, error) {
 			return
 		})
 
+	if err != nil {
+		return "", err
+	}
+
 	return data.(string), nil
 
 }
@@ -185,14 +190,22 @@ func (o *Open) GetAppID() string {
 	return o.AppID
 }
 
-func (e *Engine) ComponentApiQueryAuth(authCode, redirectUri string) (s string,
+func (e *Engine) ComponentApiQueryAuth(c *znet.Context, authCode string) (s string,
 	redirect string, err error) {
 	if !e.IsOpen() {
 		return "", "", errors.New("only supports open")
 	}
+
+	var redirectUri string
+	if len(e.redirectDomain) > 0 {
+		redirect = e.redirectDomain + c.Request.URL.String()
+	} else {
+		redirect = c.Host(true)
+	}
+
 	config := e.config.(*Open)
 	if authCode == "" {
-		return e.getAuthUri(config, redirectUri)
+		return e.getAuthUri(config, redirect)
 	}
 	componentAccessToken, err := config.GetComponentAccessToken()
 	if err != nil {

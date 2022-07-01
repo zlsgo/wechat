@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	netHttp "net/http"
+	"net/url"
 	"strconv"
 
 	"github.com/sohaha/zlsgo/zhttp"
@@ -118,4 +119,18 @@ func CheckResError(v []byte) (*zjson.Res, error) {
 		return &zjson.Res{}, httpError{Code: code, Msg: errmsg}
 	}
 	return &data, nil
+}
+
+func paramFilter(uri string) string {
+	if u, err := url.Parse(uri); err == nil {
+		querys := u.Query()
+		for k := range querys {
+			if k == "code" || k == "state" || k == "scope" {
+				delete(querys, k)
+			}
+		}
+		u.RawQuery = querys.Encode()
+		uri = u.String()
+	}
+	return uri
 }
