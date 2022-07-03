@@ -168,6 +168,21 @@ func SaveCacheData(path string) (json string, err error) {
 
 // New 初始一个实例
 func New(c Cfg) *Engine {
+	cacheFileOnce.Do(func() {
+		isAutoCache := len(CacheFile) > 0
+		if isAutoCache {
+			_ = LoadCacheData(CacheFile)
+			go func() {
+				for {
+					time.Sleep(CacheTime)
+					if len(CacheFile) > 0 {
+						_, _ = SaveCacheData(CacheFile)
+					}
+				}
+			}()
+		}
+	})
+
 	appid, action, apiURL := c.GetAppID(), "", APIURL
 	switch c.(type) {
 	case *Open:
