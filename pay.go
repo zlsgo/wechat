@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/sohaha/zlsgo/zfile"
 	"github.com/sohaha/zlsgo/zstring"
 	"github.com/sohaha/zlsgo/ztype"
 )
@@ -14,6 +15,7 @@ type Pay struct {
 	Key        string // 密钥
 	CertPath   string // 证书路径
 	KeyPath    string // 证书路径
+	prikey     string // 私钥内容
 	sandbox    bool   // 开启支付沙盒
 	sandboxKey string
 }
@@ -79,7 +81,7 @@ func (p *Pay) GetSandboxSignkey() (string, error) {
 		"nonce_str": zstring.Rand(16),
 	}
 
-	data["sign"] = signParam(sortParam(data, p.Key), "MD5")
+	data["sign"] = signParam(sortParam(data, p.Key), "MD5", "")
 
 	sMap := make(map[string]string, len(data))
 	for k, val := range data {
@@ -102,6 +104,15 @@ func (p *Pay) GetSandboxSignkey() (string, error) {
 		return "", errors.New("获取沙盒 Key 失败")
 	}
 	return key, nil
+}
+
+func (p *Pay) prikeyText() string {
+	if len(p.prikey) == 0 {
+		if prikey, err := zfile.ReadFile(p.KeyPath); err == nil {
+			p.prikey = zstring.Bytes2String(prikey)
+		}
+	}
+	return p.prikey
 }
 
 func (p *Pay) getKey() string {
@@ -134,7 +145,7 @@ func (p *Pay) Orderquery(o Order) (map[string]string, error) {
 		"out_trade_no":   o.OutTradeNo,
 	}
 
-	data["sign"] = signParam(sortParam(data, p.getKey()), "MD5")
+	data["sign"] = signParam(sortParam(data, p.getKey()), "MD5", "")
 	url := "https://api.mch.weixin.qq.com/pay/orderquery"
 	if p.sandbox {
 		url = "https://api.mch.weixin.qq.com/sandboxnew/pay/orderquery"
@@ -164,7 +175,7 @@ func (p *Pay) UnifiedOrder(appid string, order PayOrder, notifyUrl string) (prep
 	data["notify_url"] = notifyUrl
 	data["mch_id"] = p.MchId
 	data["appid"] = appid
-	data["sign"] = signParam(sortParam(data, p.getKey()), "MD5")
+	data["sign"] = signParam(sortParam(data, p.getKey()), "MD5", "")
 
 	sMap := make(map[string]string, len(data))
 	for k, val := range data {
@@ -186,14 +197,15 @@ func (p *Pay) UnifiedOrder(appid string, order PayOrder, notifyUrl string) (prep
 // JsSign 微信页面支付签名
 func (p *Pay) JsSign(appid, prepayID string) map[string]interface{} {
 	data := map[string]interface{}{
-		"signType":  "MD5",
+		"signType":  "RSA",
 		"timeStamp": time.Now().Unix(),
 		"nonceStr":  zstring.Rand(16),
 		"package":   "prepay_id=" + prepayID,
 		"appId":     appid,
 	}
 
-	data["paySign"] = signParam(sortParam(data, p.Key), "MD5")
+	key := p.prikeyText()
+	data["paySign"] = signParam(sortParam(data, p.Key), "RSA", key)
 	return data
 }
 
@@ -220,7 +232,7 @@ func (p *Pay) Notify(raw string) (map[string]string, error) {
 			signData[key] = data[key]
 		}
 
-		sign := signParam(sortParam(signData, p.getKey()), signType)
+		sign := signParam(sortParam(signData, p.getKey()), signType, "")
 		if resultSign != sign {
 			return nil, errors.New("非法支付结果通用通知")
 		}
