@@ -196,3 +196,35 @@ func (p *Pay) JsSign(appid, prepayID string) map[string]interface{} {
 	data["paySign"] = signParam(sortParam(data, p.Key), "MD5")
 	return data
 }
+
+// Notify 支付通知
+// HTTP应答状态码需返回200或204，必须为https地址
+func (p *Pay) Notify(raw string) (map[string]string, error) {
+	data, err := ParseXML2Map(zstring.String2Bytes(raw))
+	if err != nil {
+		return nil, err
+	}
+
+	if return_code, ok := data["return_code"]; ok && return_code == "SUCCESS" {
+		signData := make(map[string]interface{}, len(data))
+		resultSign := ""
+		signType := ""
+		for key := range data {
+			if key == "sign" {
+				resultSign = data[key]
+				continue
+			}
+			if key == "sign_type" {
+				signType = data[key]
+			}
+			signData[key] = data[key]
+		}
+
+		sign := signParam(sortParam(signData, p.getKey()), signType)
+		if resultSign != sign {
+			return nil, errors.New("非法支付结果通用通知")
+		}
+	}
+
+	return data, nil
+}
