@@ -23,10 +23,12 @@ func (e *Engine) GetJsSign(url string) (JsSign, error) {
 	if err != nil {
 		return JsSign{}, err
 	}
+
 	timestamp := time.Now().Unix()
 	noncestr := zstring.Rand(16)
 	signature := fmt.Sprintf("jsapi_ticket=%s&noncestr=%s&timestamp=%d&url=%s", jsapiTicket, noncestr, timestamp, url)
 	signature = sha1Signature(signature)
+
 	return JsSign{
 		AppID:     e.GetAppID(),
 		NonceStr:  noncestr,

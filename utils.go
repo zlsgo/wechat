@@ -2,16 +2,21 @@ package wechat
 
 import (
 	"bytes"
+	"crypto/sha1"
+	"encoding/hex"
 	"encoding/xml"
 	"fmt"
 	"io"
 	netHttp "net/http"
 	"net/url"
+	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/sohaha/zlsgo/zhttp"
 	"github.com/sohaha/zlsgo/zjson"
 	"github.com/sohaha/zlsgo/zstring"
+	"github.com/sohaha/zlsgo/ztype"
 	"github.com/sohaha/zlsgo/zutil"
 )
 
@@ -48,7 +53,8 @@ func FormatMap2XML(m XMLData) (string, error) {
 		if _, err := io.WriteString(buf, fmt.Sprintf("<%s>", k)); err != nil {
 			return "", err
 		}
-		if err := xml.EscapeText(buf, zstring.String2Bytes(v)); err != nil {
+		val := ztype.ToString(v)
+		if err := xml.EscapeText(buf, zstring.String2Bytes(val)); err != nil {
 			return "", err
 		}
 		if _, err := io.WriteString(buf, fmt.Sprintf("</%s>", k)); err != nil {
@@ -133,4 +139,39 @@ func paramFilter(uri string) string {
 		uri = u.String()
 	}
 	return uri
+}
+
+func sortParam(v map[string]interface{}, key string) string {
+	l := len(v)
+	keys := make([]string, 0, l)
+	for k := range v {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	b := zstring.Buffer(l * 3)
+	for i := range keys {
+		k := keys[i]
+		s := ztype.ToString(v[k])
+		if len(s) == 0 {
+			continue
+		}
+		if i > 0 {
+			b.WriteString("&")
+		}
+		b.WriteString(k)
+		b.WriteString("=")
+		b.WriteString(s)
+	}
+	return b.String() + "&key=" + key
+}
+
+func signParam(v string, signType string) string {
+	switch strings.ToUpper(signType) {
+	case "SHA1":
+		b := sha1.Sum(zstring.String2Bytes(v))
+		return hex.EncodeToString(b[:])
+	default:
+		// MD5
+		return strings.ToUpper(zstring.Md5(v))
+	}
 }
