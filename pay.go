@@ -6,18 +6,25 @@ import (
 	"time"
 
 	"github.com/sohaha/zlsgo/zfile"
+	"github.com/sohaha/zlsgo/zhttp"
 	"github.com/sohaha/zlsgo/zstring"
 	"github.com/sohaha/zlsgo/ztype"
 )
 
 type Pay struct {
 	MchId      string // 商户ID
-	Key        string // 密钥
+	Key        string // V2密钥
 	CertPath   string // 证书路径
 	KeyPath    string // 证书路径
 	prikey     string // 私钥内容
 	sandbox    bool   // 开启支付沙盒
 	sandboxKey string
+	http       *zhttp.Engine
+}
+
+type OrderCondition struct {
+	OutTradeNo    string `json:"out_trade_no,omitempty"`
+	TransactionId string `json:"transaction_id,omitempty"`
 }
 
 type PayOrder struct {
@@ -35,6 +42,10 @@ type PayOrder struct {
 }
 type PayOrderOption func(*PayOrder)
 
+func (p PayOrder) GetOutTradeNo() string {
+	return p.OutTradeNo
+}
+
 func (p PayOrder) build() map[string]interface{} {
 	m := ztype.ToMapString(p)
 	m["openid"] = p.openid
@@ -44,7 +55,8 @@ func (p PayOrder) build() map[string]interface{} {
 	return m
 }
 
-func NewPayOrder(openid string, totalFee uint, ip string, opts ...PayOrderOption) PayOrder {
+// NewPayOrder 支付订单
+func NewPayOrder(openid string, totalFee uint, ip string, body string, opts ...PayOrderOption) PayOrder {
 	outTradeNo := zstring.Md5(openid)[0:12] + strconv.Itoa(int(time.Now().Unix())) + zstring.Rand(10)
 	p := PayOrder{
 		DeviceInfo:     "WEB",
@@ -55,7 +67,59 @@ func NewPayOrder(openid string, totalFee uint, ip string, opts ...PayOrderOption
 		openid:         openid,
 		OutTradeNo:     outTradeNo,
 		totalFee:       totalFee,
+		Body:           body,
 		spbillCreateIp: ip,
+	}
+	for _, opt := range opts {
+		opt(&p)
+	}
+	return p
+}
+
+type RefundOrder struct {
+	Appid         string `json:"appid,omitempty"`
+	DeviceInfo    string `json:"device_info,omitempty"`
+	NonceStr      string `json:"nonce_str,omitempty"`
+	SignType      string `json:"sign_type,omitempty"`
+	OutRefundNo   string `json:"out_refund_no,omitempty"`
+	RefundFeeType string `json:"refund_fee_type,omitempty"`
+	totalFee      uint
+	refundFee     uint
+	OutTradeNo    string `json:"out_trade_no,omitempty"`
+	TransactionId string `json:"transaction_id,omitempty"`
+}
+
+type RefundOrderOption func(*RefundOrder)
+
+func (p RefundOrder) GetOutRefundNo() string {
+	return p.OutRefundNo
+}
+
+func (p RefundOrder) build() map[string]interface{} {
+	m := ztype.ToMapString(p)
+	m["total_fee"] = p.totalFee
+	m["refund_fee"] = p.refundFee
+
+	return m
+}
+
+// NewRefundOrder 退款订单
+func NewRefundOrder(totalFee, refundFee uint, condition OrderCondition, opts ...RefundOrderOption) RefundOrder {
+	m := condition.OutTradeNo
+	if len(m) == 0 {
+		m = condition.TransactionId
+	}
+	OutRefundNo := zstring.Md5(m)[0:12] + strconv.Itoa(int(time.Now().Unix())) + zstring.Rand(10)
+	p := RefundOrder{
+		DeviceInfo:    "WEB",
+		NonceStr:      zstring.Rand(16),
+		SignType:      "MD5",
+		RefundFeeType: "CNY",
+		OutRefundNo:   OutRefundNo,
+		OutTradeNo:    condition.OutTradeNo,
+		TransactionId: condition.TransactionId,
+		totalFee:      totalFee,
+		refundFee:     refundFee,
 	}
 	for _, opt := range opts {
 		opt(&p)
@@ -65,6 +129,13 @@ func NewPayOrder(openid string, totalFee uint, ip string, opts ...PayOrderOption
 
 // NewPay 创建支付
 func NewPay(p Pay) *Pay {
+	p.http = zhttp.New()
+	if len(p.CertPath) > 0 && len(p.KeyPath) > 0 {
+		p.http.TlsCertificate(zhttp.Certificate{
+			CertFile: p.CertPath,
+			KeyFile:  p.KeyPath,
+		})
+	}
 	return &p
 }
 
@@ -161,7 +232,7 @@ func (p *Pay) Orderquery(o Order) (map[string]string, error) {
 		return nil, err
 	}
 
-	return httpPayProcess(http.Post(url, xml))
+	return httpPayProcess(p.http.Post(url, xml))
 }
 
 // UnifiedOrder 统一下单
@@ -187,17 +258,48 @@ func (p *Pay) UnifiedOrder(appid string, order PayOrder, notifyUrl string) (prep
 		return "", err
 	}
 
-	xmlData, err := httpPayProcess(http.Post(url, xml))
+	xmlData, err := httpPayProcess(p.http.Post(url, xml))
 	if err != nil {
 		return "", err
 	}
 	return xmlData["prepay_id"], nil
 }
 
+// Refund 申请退款
+func (p *Pay) Refund(appid string, order RefundOrder, notifyUrl string) (refundID string, err error) {
+	url := "https://api.mch.weixin.qq.com/secapi/pay/refund"
+	if p.sandbox {
+		url = "https://api.mch.weixin.qq.com/sandboxnew/pay/refund"
+	}
+
+	data := order.build()
+	data["notify_url"] = notifyUrl
+	data["mch_id"] = p.MchId
+	data["appid"] = appid
+	data["sign"] = signParam(sortParam(data, p.getKey()), "MD5", "")
+
+	sMap := make(map[string]string, len(data))
+	for k, val := range data {
+		sMap[k] = ztype.ToString(val)
+	}
+
+	xml, err := FormatMap2XML(sMap)
+	if err != nil {
+		return "", err
+	}
+
+	xmlData, err := httpPayProcess(p.http.Post(url, xml))
+	if err != nil {
+		return "", err
+	}
+
+	return xmlData["refund_id"], nil
+}
+
 // JsSign 微信页面支付签名
 func (p *Pay) JsSign(appid, prepayID string) map[string]interface{} {
 	data := map[string]interface{}{
-		"signType":  "RSA",
+		"signType":  "MD5",
 		"timeStamp": time.Now().Unix(),
 		"nonceStr":  zstring.Rand(16),
 		"package":   "prepay_id=" + prepayID,
@@ -205,19 +307,51 @@ func (p *Pay) JsSign(appid, prepayID string) map[string]interface{} {
 	}
 
 	key := p.prikeyText()
-	data["paySign"] = signParam(sortParam(data, p.Key), "RSA", key)
+	data["paySign"] = signParam(sortParam(data, p.Key), "MD5", key)
 	return data
 }
 
-// Notify 支付通知
-// HTTP应答状态码需返回200或204，必须为https地址
-func (p *Pay) Notify(raw string) (map[string]string, error) {
-	data, err := ParseXML2Map(zstring.String2Bytes(raw))
-	if err != nil {
-		return nil, err
+type NotifyType uint
+
+const (
+	UnknownNotify NotifyType = iota
+	PayNotify
+	RefundNotify
+)
+
+type NotifyResult struct {
+	Type     NotifyType
+	Data     XMLData
+	Response []byte
+}
+
+// Notify 支付/退款通知
+func (p *Pay) Notify(raw string) (result *NotifyResult, err error) {
+	result = &NotifyResult{
+		Type: UnknownNotify,
 	}
 
-	if return_code, ok := data["return_code"]; ok && return_code == "SUCCESS" {
+	defer func() {
+		if err != nil {
+			result.Response = []byte(`<xml><return_code><![CDATA[FAIL]]></return_code><return_msg><![CDATA[` + err.Error() + `]]></return_msg></xml>`)
+		} else {
+			result.Response = []byte(`<xml><return_code><![CDATA[SUCCESS]]></return_code><return_msg><![CDATA[OK]]></return_msg></xml>`)
+		}
+	}()
+	var data XMLData
+	data, err = ParseXML2Map(zstring.String2Bytes(raw))
+	if err != nil {
+		return
+	}
+
+	result.Data = data
+	if _, ok := data["req_info"]; ok {
+		result.Type = RefundNotify
+	} else {
+		result.Type = PayNotify
+	}
+
+	if returnCode, ok := data["return_code"]; ok && returnCode == "SUCCESS" {
 		signData := make(map[string]interface{}, len(data))
 		resultSign := ""
 		signType := ""
@@ -231,12 +365,14 @@ func (p *Pay) Notify(raw string) (map[string]string, error) {
 			}
 			signData[key] = data[key]
 		}
-
-		sign := signParam(sortParam(signData, p.getKey()), signType, "")
-		if resultSign != sign {
-			return nil, errors.New("非法支付结果通用通知")
+		if len(signType) > 0 {
+			sign := signParam(sortParam(signData, p.getKey()), signType, "")
+			if resultSign != sign {
+				err = errors.New("非法支付结果通用通知")
+				return
+			}
 		}
 	}
 
-	return data, nil
+	return
 }
