@@ -344,12 +344,25 @@ func (p *Pay) Notify(raw string) (result *NotifyResult, err error) {
 		return
 	}
 
-	result.Data = data
-	if _, ok := data["req_info"]; ok {
+	if info, ok := data["req_info"]; ok {
 		result.Type = RefundNotify
+		var plain []byte
+		plain, err = aesECBDecrypt(info, zstring.Md5(p.getKey()))
+		if err != nil {
+			return
+		}
+
+		if d, err := ParseXML2Map(plain); err == nil {
+			for k := range d {
+				data[k] = d[k]
+			}
+			delete(data, "req_info")
+		}
 	} else {
 		result.Type = PayNotify
 	}
+
+	result.Data = data
 
 	if returnCode, ok := data["return_code"]; ok && returnCode == "SUCCESS" {
 		signData := make(map[string]interface{}, len(data))

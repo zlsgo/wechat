@@ -165,7 +165,7 @@ func sortParam(v map[string]interface{}, key string) string {
 	return b.String() + "&key=" + key
 }
 
-func signParam(v string, signType string) string {
+func signParam(v string, signType, key string) string {
 	switch strings.ToUpper(signType) {
 	case "SHA1":
 		b := sha1.Sum(zstring.String2Bytes(v))
