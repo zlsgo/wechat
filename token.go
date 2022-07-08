@@ -77,7 +77,7 @@ func (e *Engine) Auth(c *znet.Context, state string, scope ScopeType) (*zjson.Re
 	if len(code) == 0 {
 		return nil, false, nil
 	}
-	json, err := e.getAuthAccessToken(code)
+	json, err := e.GetAuthInfo(code)
 	if err != nil {
 		if httpErr, ok := err.(httpError); ok {
 			switch httpErr.Code {
@@ -138,7 +138,7 @@ func (e *Engine) getOauthRedirect(callback string, state string, scope ScopeType
 	return u.String()
 }
 
-func (e *Engine) getAuthAccessToken(authCode string) (*zjson.Res, error) {
+func (e *Engine) GetAuthInfo(authCode string) (*zjson.Res, error) {
 	u := zstring.Buffer(3)
 	u.WriteString(e.apiURL)
 
