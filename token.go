@@ -144,6 +144,8 @@ func (e *Engine) GetAuthInfo(authCode string) (*zjson.Res, error) {
 
 	appid := e.config.GetAppID()
 	switch true {
+	case e.IsWeapp():
+		return (e.config.(*Weapp)).GetSessionKey(authCode, "authorization_code")
 	case e.IsQy():
 		u.WriteString("/cgi-bin/user/getuserinfo?access_token=")
 		token, err := e.GetAccessToken()

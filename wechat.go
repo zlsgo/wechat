@@ -38,9 +38,7 @@ type (
 )
 
 const (
-	// APIURL 微信接口域名
-	APIURL = "https://api.weixin.qq.com"
-	// QyAPIURL 企业微信接口域名
+	APIURL                     = "https://api.weixin.qq.com"
 	QyAPIURL                   = "https://qyapi.weixin.qq.com"
 	openURL                    = "https://open.weixin.qq.com"
 	cachePrtfix                = "go_wechat_"
