@@ -124,7 +124,7 @@ func CheckResError(v []byte) (*zjson.Res, error) {
 		}
 		return &zjson.Res{}, httpError{Code: code, Msg: errmsg}
 	}
-	return &data, nil
+	return data, nil
 }
 
 func paramFilter(uri string) string {

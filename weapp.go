@@ -1,6 +1,10 @@
 package wechat
 
 import (
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/sha1"
+	"encoding/base64"
 	"fmt"
 
 	"github.com/sohaha/zlsgo/zhttp"
@@ -78,4 +82,33 @@ func (m *Weapp) GetSessionKey(code, grantType string) (data *zjson.Res, err erro
 	u.WriteString("&grant_type=")
 	u.WriteString(grantType)
 	return httpResProcess(http.Get(u.String()))
+}
+
+func (m *Weapp) Decrypt(seesionKey, iv, encryptedData string) (string, error) {
+	byts := make([][]byte, 0, 3)
+	for _, v := range []string{seesionKey, iv, encryptedData} {
+		b, err := base64.StdEncoding.DecodeString(v)
+		if err != nil {
+			return "", err
+		}
+		byts = append(byts, b)
+	}
+	aesKey := byts[0]
+	ivRaw := byts[1]
+	cipherData := byts[2]
+	block, _ := aes.NewCipher(aesKey)
+	blockSize := block.BlockSize()
+	blockMode := cipher.NewCBCDecrypter(block, ivRaw)
+	plaintext := make([]byte, len(cipherData))
+	blockMode.CryptBlocks(plaintext, cipherData)
+	plaintext = PKCS7UnPadding(plaintext, blockSize)
+	return zstring.Bytes2String(plaintext), nil
+}
+
+func (m *Weapp) Verify(seesionKey, rawData, signature string) bool {
+	h := sha1.New()
+	h.Write(zstring.String2Bytes(rawData))
+	h.Write(zstring.String2Bytes(seesionKey))
+	sign := fmt.Sprintf("%x", h.Sum(nil))
+	return sign == signature
 }

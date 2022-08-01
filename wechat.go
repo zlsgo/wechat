@@ -84,7 +84,7 @@ func LoadCacheData(path string) (err error) {
 	var now = time.Now().Unix()
 	data, _ = ioutil.ReadFile(path)
 	cacheData = data
-	zjson.ParseBytes(data).ForEach(func(key, value zjson.Res) bool {
+	zjson.ParseBytes(data).ForEach(func(key, value *zjson.Res) bool {
 		k := strings.Split(key.String(), "|")
 		if len(k) < 2 || (k[0] == "" || k[1] == "") {
 			return true
@@ -92,7 +92,7 @@ func LoadCacheData(path string) (err error) {
 		cacheName := cachePrtfix + k[1] + k[0]
 		cache := zcache.New(cacheName)
 		apps[k[0]] = k[1]
-		value.ForEach(func(key, value zjson.Res) bool {
+		value.ForEach(func(key, value *zjson.Res) bool {
 			cachekey := key.String()
 			log.Debug("载入缓存", cacheName, cachekey)
 			switch cachekey {
@@ -112,7 +112,7 @@ func LoadCacheData(path string) (err error) {
 	return nil
 }
 
-func isSetCache(value zjson.Res, now int64) (diffTime int) {
+func isSetCache(value *zjson.Res, now int64) (diffTime int) {
 	saveTime := value.Get("SaveTime").Int()
 	outTime := value.Get("OutTime").Int()
 	diffTime = outTime - (int(now) - saveTime)

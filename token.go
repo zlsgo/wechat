@@ -163,7 +163,7 @@ func (e *Engine) GetAuthInfo(authCode string) (*zjson.Res, error) {
 				accessToken, _ := e.GetAccessToken()
 				j, _ = zjson.Set(j, "access_token", accessToken)
 				njson := zjson.Parse(j)
-				return &njson, nil
+				return njson, nil
 			}
 		}
 		return json, err
