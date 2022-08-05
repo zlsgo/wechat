@@ -338,6 +338,7 @@ func (p *Pay) Notify(raw string) (result *NotifyResult, err error) {
 			result.Response = []byte(`<xml><return_code><![CDATA[SUCCESS]]></return_code><return_msg><![CDATA[OK]]></return_msg></xml>`)
 		}
 	}()
+
 	var data XMLData
 	data, err = ParseXML2Map(zstring.String2Bytes(raw))
 	if err != nil {

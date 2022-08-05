@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"errors"
 
 	"github.com/sohaha/zlsgo/zhttp"
 	"github.com/sohaha/zlsgo/zjson"
@@ -69,6 +70,9 @@ func FormatMap2XML(m XMLData) (string, error) {
 
 // ParseXML2Map parse xml to map
 func ParseXML2Map(b []byte) (m XMLData, err error) {
+	if len(b) == 0 {
+		return nil, errors.New("xml data is empty")
+	}
 	var (
 		d     = xml.NewDecoder(bytes.NewReader(b))
 		depth = 0
