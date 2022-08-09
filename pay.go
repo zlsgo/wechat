@@ -300,7 +300,7 @@ func (p *Pay) Refund(appid string, order RefundOrder, notifyUrl string) (refundI
 func (p *Pay) JsSign(appid, prepayID string) map[string]interface{} {
 	data := map[string]interface{}{
 		"signType":  "MD5",
-		"timeStamp": time.Now().Unix(),
+		"timeStamp": strconv.Itoa(int(time.Now().Unix())),
 		"nonceStr":  zstring.Rand(16),
 		"package":   "prepay_id=" + prepayID,
 		"appId":     appid,
