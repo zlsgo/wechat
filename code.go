@@ -1,7 +1,11 @@
 package wechat
 
-import "strconv"
+import (
+	"strconv"
+	"errors"
+)
 
+var errNoJSON = errors.New("no json")
 var errCode = map[int]string{
 	-1:      "系统繁忙",
 	0:       "请求成功",
@@ -190,3 +194,4 @@ func ErrorCode(err error) int {
 	}
 	return -1
 }
+

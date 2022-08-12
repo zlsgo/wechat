@@ -43,6 +43,26 @@ func (e *Engine) HttpAccessTokenPost(url string, v ...interface{}) (j *zjson.Res
 	return
 }
 
+func (e *Engine) HttpAccessTokenPostRaw(url string, v ...interface{}) (j []byte, err error) {
+	token, err := e.GetAccessToken()
+	if err != nil {
+		return
+	}
+
+	b, err := httpProcess(http.Post(url, append(transformSendData(v), zhttp.QueryParam{"access_token": token})...))
+
+	if err == errNoJSON{
+		return b, nil
+	}
+
+	if e.checkTokenExpiration(err) {
+		return e.HttpAccessTokenPostRaw(url, v...)
+	}
+
+	_,err = CheckResError(b)
+	return nil,err
+}
+
 func httpResProcess(r *zhttp.Res, e error) (*zjson.Res, error) {
 	b, err := httpProcess(r, e)
 	if err != nil {
@@ -58,7 +78,12 @@ func httpProcess(r *zhttp.Res, e error) ([]byte, error) {
 	if r.StatusCode() != 200 {
 		return nil, httpError{Code: -2, Msg: "接口请求失败: " + r.Response().Status}
 	}
-	return r.Bytes(), nil
+	bytes := r.Bytes()
+	ctype := r.Response().Header.Get("Content-Type")
+	if !strings.Contains(ctype, "application/json") {
+		e  = errNoJSON
+	}
+	return bytes, e
 }
 
 func httpPayProcess(r *zhttp.Res, e error) (map[string]string, error) {
