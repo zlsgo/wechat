@@ -51,7 +51,7 @@ func (e *Engine) HttpAccessTokenPostRaw(url string, v ...interface{}) (j []byte,
 
 	b, err := httpProcess(http.Post(url, append(transformSendData(v), zhttp.QueryParam{"access_token": token})...))
 
-	if err == errNoJSON{
+	if err == errNoJSON {
 		return b, nil
 	}
 
@@ -59,8 +59,8 @@ func (e *Engine) HttpAccessTokenPostRaw(url string, v ...interface{}) (j []byte,
 		return e.HttpAccessTokenPostRaw(url, v...)
 	}
 
-	_,err = CheckResError(b)
-	return nil,err
+	_, err = CheckResError(b)
+	return nil, err
 }
 
 func httpResProcess(r *zhttp.Res, e error) (*zjson.Res, error) {
@@ -80,8 +80,8 @@ func httpProcess(r *zhttp.Res, e error) ([]byte, error) {
 	}
 	bytes := r.Bytes()
 	ctype := r.Response().Header.Get("Content-Type")
-	if !strings.Contains(ctype, "application/json") {
-		e  = errNoJSON
+	if strings.Contains(ctype, "image/") {
+		e = errNoJSON
 	}
 	return bytes, e
 }
