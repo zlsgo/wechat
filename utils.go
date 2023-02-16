@@ -5,6 +5,7 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	netHttp "net/http"
@@ -12,7 +13,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"errors"
 
 	"github.com/sohaha/zlsgo/zhttp"
 	"github.com/sohaha/zlsgo/zjson"
@@ -23,10 +23,8 @@ import (
 
 type (
 	// SendData Send Data
-	SendData map[string]string
-	// XMLData XML Data
-	XMLData map[string]string
-	request struct {
+	SendData ztype.Map
+	request  struct {
 		request *netHttp.Request
 		rawData []byte
 	}
@@ -44,7 +42,30 @@ func transformSendData(v []interface{}) []interface{} {
 	return v
 }
 
-func FormatMap2XML(m XMLData) (string, error) {
+func recurveFormatMap2XML(buf io.Writer, m ztype.Map) {
+	for k := range m {
+		_, _ = io.WriteString(buf, fmt.Sprintf("<%s>", k))
+		v := m.Get(k)
+		switch val := v.Value().(type) {
+		case ztype.Maps:
+			io.WriteString(buf, "<item>")
+			for _, vs := range val {
+				recurveFormatMap2XML(buf, vs)
+			}
+			io.WriteString(buf, "</item>")
+		case ztype.Map:
+			recurveFormatMap2XML(buf, val)
+		default:
+			if err := xml.EscapeText(buf, zstring.String2Bytes(m.Get(k).String())); err != nil {
+				return
+			}
+		}
+		_, _ = io.WriteString(buf, fmt.Sprintf("</%s>", k))
+	}
+
+}
+
+func FormatMap2XML(m ztype.Map) (string, error) {
 	buf := zutil.GetBuff()
 	defer zutil.PutBuff(buf)
 	if _, err := io.WriteString(buf, "<xml>"); err != nil {
@@ -54,22 +75,28 @@ func FormatMap2XML(m XMLData) (string, error) {
 		if _, err := io.WriteString(buf, fmt.Sprintf("<%s>", k)); err != nil {
 			return "", err
 		}
-		val := ztype.ToString(v)
-		if err := xml.EscapeText(buf, zstring.String2Bytes(val)); err != nil {
-			return "", err
+		switch val := v.(type) {
+		case ztype.Map:
+			recurveFormatMap2XML(buf, val)
+		case ztype.Maps:
+			io.WriteString(buf, "<item>")
+			for _, vs := range val {
+				recurveFormatMap2XML(buf, vs)
+			}
+			io.WriteString(buf, "</item>")
+		default:
+			if err := xml.EscapeText(buf, zstring.String2Bytes(ztype.ToString(val))); err != nil {
+				return "", err
+			}
 		}
-		if _, err := io.WriteString(buf, fmt.Sprintf("</%s>", k)); err != nil {
-			return "", err
-		}
+		_, _ = io.WriteString(buf, fmt.Sprintf("</%s>", k))
 	}
-	if _, err := io.WriteString(buf, "</xml>"); err != nil {
-		return "", err
-	}
+	_, _ = io.WriteString(buf, "</xml>")
 	return buf.String(), nil
 }
 
 // ParseXML2Map parse xml to map
-func ParseXML2Map(b []byte) (m XMLData, err error) {
+func ParseXML2Map(b []byte) (m ztype.Map, err error) {
 	if len(b) == 0 {
 		return nil, errors.New("xml data is empty")
 	}
@@ -80,7 +107,7 @@ func ParseXML2Map(b []byte) (m XMLData, err error) {
 		key   string
 		buf   bytes.Buffer
 	)
-	m = XMLData{}
+	m = ztype.Map{}
 	for {
 		tk, err = d.Token()
 		if err != nil {

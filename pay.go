@@ -46,7 +46,7 @@ func (p PayOrder) GetOutTradeNo() string {
 	return p.OutTradeNo
 }
 
-func (p PayOrder) build() map[string]interface{} {
+func (p PayOrder) build() ztype.Map {
 	m := ztype.ToMapString(p)
 	m["openid"] = p.openid
 	m["total_fee"] = p.totalFee
@@ -154,7 +154,7 @@ func (p *Pay) GetSandboxSignkey() (string, error) {
 
 	data["sign"] = signParam(sortParam(data, p.Key), "MD5", "")
 
-	sMap := make(map[string]string, len(data))
+	sMap := make(ztype.Map, len(data))
 	for k, val := range data {
 		sMap[k] = ztype.ToString(val)
 	}
@@ -170,8 +170,8 @@ func (p *Pay) GetSandboxSignkey() (string, error) {
 		return "", err
 	}
 
-	key, ok := xmlData["sandbox_signkey"]
-	if !ok {
+	key := xmlData.Get("sandbox_signkey").String()
+	if key == "" {
 		return "", errors.New("获取沙盒 Key 失败")
 	}
 	return key, nil
@@ -202,7 +202,7 @@ type Order struct {
 }
 
 // Orderquery 订单查询
-func (p *Pay) Orderquery(o Order) (map[string]string, error) {
+func (p *Pay) Orderquery(o Order) (ztype.Map, error) {
 	if len(o.OutTradeNo) == 0 && len(o.TransactionID) == 0 {
 		return nil, errors.New("out_trade_no、transaction_id 至少填一个")
 	}
@@ -222,7 +222,7 @@ func (p *Pay) Orderquery(o Order) (map[string]string, error) {
 		url = "https://api.mch.weixin.qq.com/sandboxnew/pay/orderquery"
 	}
 
-	sMap := make(map[string]string, len(data))
+	sMap := make(ztype.Map, len(data))
 	for k, val := range data {
 		sMap[k] = ztype.ToString(val)
 	}
@@ -248,9 +248,9 @@ func (p *Pay) UnifiedOrder(appid string, order PayOrder, notifyUrl string) (prep
 	data["appid"] = appid
 	data["sign"] = signParam(sortParam(data, p.getKey()), "MD5", "")
 
-	sMap := make(map[string]string, len(data))
-	for k, val := range data {
-		sMap[k] = ztype.ToString(val)
+	sMap := make(ztype.Map, len(data))
+	for k := range data {
+		sMap[k] = data.Get(k).String()
 	}
 
 	xml, err := FormatMap2XML(sMap)
@@ -262,7 +262,7 @@ func (p *Pay) UnifiedOrder(appid string, order PayOrder, notifyUrl string) (prep
 	if err != nil {
 		return "", err
 	}
-	return xmlData["prepay_id"], nil
+	return xmlData.Get("prepay_id").String(), nil
 }
 
 // Refund 申请退款
@@ -278,7 +278,7 @@ func (p *Pay) Refund(appid string, order RefundOrder, notifyUrl string) (refundI
 	data["appid"] = appid
 	data["sign"] = signParam(sortParam(data, p.getKey()), "MD5", "")
 
-	sMap := make(map[string]string, len(data))
+	sMap := make(ztype.Map, len(data))
 	for k, val := range data {
 		sMap[k] = ztype.ToString(val)
 	}
@@ -293,7 +293,7 @@ func (p *Pay) Refund(appid string, order RefundOrder, notifyUrl string) (refundI
 		return "", err
 	}
 
-	return xmlData["refund_id"], nil
+	return xmlData.Get("refund_id").String(), nil
 }
 
 // JsSign 微信页面支付签名
@@ -321,7 +321,7 @@ const (
 
 type NotifyResult struct {
 	Type     NotifyType
-	Data     XMLData
+	Data     ztype.Map
 	Response []byte
 }
 
@@ -339,13 +339,14 @@ func (p *Pay) Notify(raw string) (result *NotifyResult, err error) {
 		}
 	}()
 
-	var data XMLData
+	var data ztype.Map
 	data, err = ParseXML2Map(zstring.String2Bytes(raw))
 	if err != nil {
 		return
 	}
 
-	if info, ok := data["req_info"]; ok {
+	info := data.Get("req_info").String()
+	if info != "" {
 		result.Type = RefundNotify
 		var plain []byte
 		plain, err = aesECBDecrypt(info, zstring.Md5(p.getKey()))
@@ -371,11 +372,11 @@ func (p *Pay) Notify(raw string) (result *NotifyResult, err error) {
 		signType := ""
 		for key := range data {
 			if key == "sign" {
-				resultSign = data[key]
+				resultSign = data.Get(key).String()
 				continue
 			}
 			if key == "sign_type" {
-				signType = data[key]
+				signType = data.Get(key).String()
 			}
 			signData[key] = data[key]
 		}

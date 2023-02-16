@@ -6,6 +6,7 @@ import (
 
 	"github.com/sohaha/zlsgo/zhttp"
 	"github.com/sohaha/zlsgo/zjson"
+	"github.com/sohaha/zlsgo/ztype"
 )
 
 var http = zhttp.New()
@@ -86,7 +87,7 @@ func httpProcess(r *zhttp.Res, e error) ([]byte, error) {
 	return bytes, e
 }
 
-func httpPayProcess(r *zhttp.Res, e error) (map[string]string, error) {
+func httpPayProcess(r *zhttp.Res, e error) (ztype.Map, error) {
 	b, err := httpProcess(r, e)
 	if err != nil {
 		return nil, err
@@ -94,21 +95,27 @@ func httpPayProcess(r *zhttp.Res, e error) (map[string]string, error) {
 
 	x, err := ParseXML2Map(b)
 	if err == nil {
-		if code, ok := x["return_code"]; ok && code == "SUCCESS" {
-			if resultCode, ok := x["result_code"]; ok && resultCode != "FAIL" {
+		code := x.Get("return_code").String()
+		if code == "SUCCESS" {
+			resultCode := x.Get("result_code").String()
+			if resultCode != "" && resultCode != "FAIL" {
 				return x, nil
 			}
 		}
-		msg, ok := x["err_code_des"]
-		if !ok {
-			if msg, ok = x["return_msg"]; !ok {
-				msg = "未知错误"
+		codeDes := x.Get("err_code_des")
+		msg := "未知错误"
+		if !codeDes.Exists() {
+			returnMsg := x.Get("return_msg")
+			if returnMsg.Exists() {
+				msg = returnMsg.String()
 			}
+		} else {
+			msg = codeDes.String()
 		}
 		if strings.Contains(msg, "无效，请检查需要验收的case") {
 			msg = "沙盒只支持指定金额, 如: 101 https://pay.weixin.qq.com/wiki/doc/api/jsapi.php?chapter=23_13"
 		}
-		return map[string]string{}, errors.New(msg)
+		return ztype.Map{}, errors.New(msg)
 	}
 
 	return x, err

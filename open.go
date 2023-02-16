@@ -9,6 +9,7 @@ import (
 	"github.com/sohaha/zlsgo/zjson"
 	"github.com/sohaha/zlsgo/znet"
 	"github.com/sohaha/zlsgo/zstring"
+	"github.com/sohaha/zlsgo/ztype"
 )
 
 type (
@@ -161,26 +162,27 @@ func (e *Engine) ComponentVerifyTicket(raw string) (
 		return "", errors.New("only supports open")
 	}
 	data, _ := ParseXML2Map(zstring.String2Bytes(raw))
-	Encrypt, ok := data["Encrypt"]
-	if !ok {
+	encrypt := data.Get("Encrypt").String()
+	if encrypt == "" {
 		return "", errors.New("illegal data")
 	}
+
 	var (
 		err        error
 		cipherText []byte
 	)
-	cipherText, err = aesDecrypt(Encrypt, config.EncodingAesKey)
+	cipherText, _ = aesDecrypt(encrypt, config.EncodingAesKey)
 	appidOffset := len(cipherText) - len(zstring.String2Bytes(config.AppID))
 	if appid := string(cipherText[appidOffset:]); appid != config.AppID {
 		return "", errors.New("appid mismatch")
 	}
 	cipherText = cipherText[20:appidOffset]
-	var ticketData XMLData
+	var ticketData ztype.Map
 	ticketData, err = ParseXML2Map(cipherText)
 	if err != nil {
 		return "", err
 	}
-	ticket := ticketData["ComponentVerifyTicket"]
+	ticket := ticketData.Get("ComponentVerifyTicket").String()
 	log.Debug("收到 Ticket:", ticket)
 	e.cache.Set(cacheComponentVerifyTicket, ticket, 0)
 	return ticket, nil

@@ -7,9 +7,17 @@ import (
 	"time"
 
 	"github.com/sohaha/zlsgo/zstring"
+	"github.com/sohaha/zlsgo/ztype"
 )
 
 type (
+	ReplyNews []struct {
+		PicUrl      string
+		Title       string
+		Description string
+		Url         string
+	}
+
 	Reply struct {
 		openid string
 	}
@@ -122,13 +130,13 @@ func (r *ReceivedSt) Data() (data *ReplySt, err error) {
 		return r.data, nil
 	}
 	if r.isEncrypt {
-		var arr XMLData
+		var arr ztype.Map
 		arr, err = ParseXML2Map(r.bodyData)
 		if err != nil {
 			return
 		}
 		var plaintext []byte
-		plaintext, err = aesDecrypt(arr["Encrypt"], r.encodingAesKey)
+		plaintext, err = aesDecrypt(arr.Get("Encrypt").String(), r.encodingAesKey)
 		if err != nil {
 			return
 		}
@@ -160,7 +168,7 @@ func (t *ReplySt) ReplyCustom(fn func(r *ReplySt) (xml string)) string {
 func (t *ReplySt) encrypt(content string) string {
 	var err error
 	if t.isEncrypt {
-		data := map[string]string{}
+		data := ztype.Map{}
 		var encrypt []byte
 		encrypt, err = aesEncrypt(MarshalPlainText(content, t.receiverID,
 			zstring.Rand(16)),
@@ -183,13 +191,39 @@ func (t *ReplySt) ReplyText(content ...string) (reply string) {
 	if len(content) == 0 {
 		return "success"
 	}
-	data := map[string]string{
+	data := ztype.Map{
 		"Content":      content[0],
 		"CreateTime":   strconv.FormatInt(time.Now().Unix(), 10),
 		"ToUserName":   t.FromUserName,
 		"FromUserName": t.ToUserName,
 		"MsgType":      "text",
 	}
+	reply, _ = FormatMap2XML(data)
+	reply = t.encrypt(reply)
+	return
+}
+
+func (t *ReplySt) ReplyNews(items ReplyNews) (reply string) {
+	if len(items) == 0 {
+		return "success"
+	}
+	data := ztype.Map{
+		"CreateTime":   strconv.FormatInt(time.Now().Unix(), 10),
+		"ToUserName":   t.FromUserName,
+		"FromUserName": t.ToUserName,
+		"MsgType":      "news",
+		"ArticleCount": len(items),
+	}
+	articles := make(ztype.Maps, len(items))
+	for i := range items {
+		articles = append(articles, ztype.Map{
+			"Title":       items[i].Title,
+			"Description": items[i].Description,
+			"PicUrl":      items[i].PicUrl,
+			"Url":         items[i].Url,
+		})
+	}
+	data["Articles"] = articles
 	reply, _ = FormatMap2XML(data)
 	reply = t.encrypt(reply)
 	return
