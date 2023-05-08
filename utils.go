@@ -35,7 +35,7 @@ func transformSendData(v []interface{}) []interface{} {
 		switch val := v[i].(type) {
 		case string:
 			v[i] = val
-		case map[string]string, SendData, map[string]interface{}:
+		case map[string]string, SendData, map[string]interface{}, ztype.Map:
 			v[i] = zhttp.BodyJSON(val)
 		}
 	}
