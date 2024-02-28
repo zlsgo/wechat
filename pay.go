@@ -47,7 +47,7 @@ func (p PayOrder) GetOutTradeNo() string {
 }
 
 func (p PayOrder) build() ztype.Map {
-	m := ztype.ToMapString(p)
+	m := ztype.ToMap(p)
 	m["openid"] = p.openid
 	m["total_fee"] = p.totalFee
 	m["spbill_create_ip"] = p.spbillCreateIp
@@ -96,7 +96,7 @@ func (p RefundOrder) GetOutRefundNo() string {
 }
 
 func (p RefundOrder) build() map[string]interface{} {
-	m := ztype.ToMapString(p)
+	m := ztype.ToMap(p)
 	m["total_fee"] = p.totalFee
 	m["refund_fee"] = p.refundFee
 
